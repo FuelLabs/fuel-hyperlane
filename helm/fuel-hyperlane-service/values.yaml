@@ -2,110 +2,112 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-replicaCount: 1
+nameOverride: ""
+fullnameOverride: "fuel-hyperlane-service"
 
 image:
   repository: 024848458133.dkr.ecr.us-east-1.amazonaws.com/fuel-hyperlane-service
   pullPolicy: Always
-  tag: "sha-f9b6d28-20250304024228"
-  startCommand: []
-  startCommandArgs: []
+  imagePullSecrets: [ ]
 
-imagePullSecrets: []
-nameOverride: ""
-fullnameOverride: "fuel-hyperlane-service"
+relayer:
+  enabled: true
+  image:
+    tag: "sha-f9b6d28-20250304024228"
+    startCommand: [ "./validator" ]
+    startCommandArgs: [ ]
 
-serviceAccount:
-  # Specifies whether a service account should be created
-  create: true
-  # Automatically mount a ServiceAccount's API credentials?
-  automount: true
-  # Annotations to add to the service account
-  annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: ""
+  service:
+    create: true
+    port: 9091
 
-podAnnotations: {}
+  serviceAccount:
+    create: true
+    automount: true
+    annotations: { }
+    name: ""
 
-podLabels: {}
+  securityContext:
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 1000
 
-podSecurityContext: {}
-  # fsGroup: 2000
+  healthcheck:
+    enabled: true
+  livenessProbe:
+    httpGet:
+      path: /
+      port: http
+  readinessProbe:
+    httpGet:
+      path: /
+      port: http
 
-securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
 
-service:
-  type: ClusterIP
-  port: 8080
+  volumeMounts: [ ]
+  volumes: [ ]
 
-ingress:
-  enabled: false
-  className: ""
-  annotations: {}
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
-  hosts:
-    - host: chart-example.local
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-  tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
+  nodeSelector: { }
+  tolerations: [ ]
+  affinity: { }
 
-resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
+validator:
+  enabled: true
+  image:
+    tag: "sha-f9b6d28-20250304024228"
+    startCommand: [ "/app/relayer" ]
+    startCommandArgs: [ ]
 
-# This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
-livenessProbe:
-  httpGet:
-    path: /
-    port: http
-readinessProbe:
-  httpGet:
-    path: /
-    port: http
+  service:
+    create: true
+    port: 9092
 
-# This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/
-autoscaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
+  serviceAccount:
+    create: true
+    automount: true
+    annotations: { }
+    name: ""
 
-# Additional volumes on the output Deployment definition.
-volumes: []
-# - name: foo
-#   secret:
-#     secretName: mysecret
-#     optional: false
+  securityContext:
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 1000
 
-# Additional volumeMounts on the output Deployment definition.
-volumeMounts: []
-# - name: foo
-#   mountPath: "/etc/foo"
-#   readOnly: true
+  healthcheck:
+    enabled: true
+  livenessProbe:
+    httpGet:
+      path: /
+      port: http
+  readinessProbe:
+    httpGet:
+      path: /
+      port: http
 
-nodeSelector: {}
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
 
-tolerations: []
+  volumeMounts: [ ]
+  volumes: [ ]
 
-affinity: {}
+  nodeSelector: { }
+  tolerations: [ ]
+  affinity: { }
