@@ -5,24 +5,24 @@ kind: Deployment
 metadata:
   name: {{ include "fuel-hyperlane-service.fullname" . }}-validator
   labels:
-    {{ - include "fuel-hyperlane-service.labels" . | nindent 4 }}
+    {{- include "fuel-hyperlane-service.labels" . | nindent 4 }}
     app.kubernetes.io/service: {{ include "fuel-hyperlane-service.fullname" . }}-validator
 spec:
-  {{ - if not $service.autoscaling.enabled }}
+  {{- if not $service.autoscaling.enabled }}
   replicas: {{ $service.replicaCount }}
-  {{ - end }}
+  {{- end }}
   selector:
     matchLabels:
-      {{ - include "fuel-hyperlane-service.selectorLabels" . | nindent 6 }}
+      {{- include "fuel-hyperlane-service.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/service: {{ include "fuel-hyperlane-service.fullname" . }}-validator
   template:
     metadata:
-      {{ - with $service.podAnnotations }}
+      {{- with $service.podAnnotations }}
       annotations:
-        {{ - toYaml . | nindent 8 }}
-      {{ - end }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       labels:
-        {{ - include "fuel-hyperlane-service.labels" . | nindent 8 }}
+        {{- include "fuel-hyperlane-service.labels" . | nindent 8 }}
         app.kubernetes.io/service: {{ include "fuel-hyperlane-service.fullname" . }}-validator
     spec:
       {{- with .Values.image.imagePullSecrets }}
@@ -32,31 +32,31 @@ spec:
 
       {{- if $service.serviceAccount.create }}
       serviceAccountName: {{ include "$service.serviceAccount.name" . }}
-      {{ - end }}
+      {{- end }}
 
-      {{ - with $service.podSecurityContext }}
+      {{- with $service.podSecurityContext }}
       securityContext:
-        {{ - toYaml . | nindent 8 }}
-      {{ - end }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 
       containers:
         - name: {{ include "fuel-explorer.fullname" . }}-validator
           {{- with $service.securityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}
-          {{ - end }}
+          {{- end }}
           
           image: "{{ .Values.image.repository }}:{{ $service.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
 
-          {{ - with $service.image.startCommand }}
+          {{- with $service.image.startCommand }}
           command:
-            {{ - toYaml . | nindent 12 }}
-          {{ - end }}
-          {{ - with $service.image.startCommandArgs }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $service.image.startCommandArgs }}
           args:
-            {{ - toYaml . | nindent 12 }}
-          {{ - end }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           
           env:
             - name: SERVICE
@@ -72,38 +72,38 @@ spec:
               containerPort: {{ $service.service.port }}
               protocol: TCP
           
-          {{ - if $service.healthcheck.enabled }}
-          {{ - with $service.livenessProbe }}
+          {{- if $service.healthcheck.enabled }}
+          {{- with $service.livenessProbe }}
           livenessProbe:
-            {{ - toYaml . | nindent 12 }}
-          {{ - end }}
-          {{ - with $service.readinessProbe }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $service.readinessProbe }}
           readinessProbe:
-            {{ - toYaml . | nindent 12 }}
-          {{ - end }}
-          {{ - end }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- end }}
           
           resources:
             {{- toYaml $service.resources | nindent 12 }}
 
-          {{ - with $service.volumeMounts }}
+          {{- with $service.volumeMounts }}
           volumeMounts:
-            {{ - toYaml . | nindent 12 }}
-          {{ - end }}
-      {{ - with $service.volumes }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with $service.volumes }}
       volumes:
-        {{ - toYaml . | nindent 8 }}
-      {{ - end }}
-      {{ - with $service.nodeSelector }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $service.nodeSelector }}
       nodeSelector:
-        {{ - toYaml . | nindent 8 }}
-      {{ - end }}
-      {{ - with $service.affinity }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $service.affinity }}
       affinity:
-        {{ - toYaml . | nindent 8 }}
-      {{ - end }}
-      {{ - with $service.tolerations }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $service.tolerations }}
       tolerations:
-        {{ - toYaml . | nindent 8 }}
-      {{ - end }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 {{- end }}
