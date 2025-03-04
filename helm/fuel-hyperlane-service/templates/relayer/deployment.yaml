@@ -29,7 +29,7 @@ spec:
       {{- end }}
 
       {{- if $service.serviceAccount.create }}
-      serviceAccountName: {{ include "$service.serviceAccount.name" . }}
+      serviceAccountName: {{ $service.serviceAccount.name }}
       {{- end }}
 
       {{- with $service.podSecurityContext }}
