@@ -61,9 +61,9 @@ spec:
               value: relayer
           envFrom:
             - configMapRef:
-                name: {{ include "fuel-hyperlane.fullname" . }}-relayer
+                name: {{ include "fuel-hyperlane-service.fullname" . }}-relayer
             - secretRef:
-                name: {{ include "fuel-hyperlane.fullname" . }}-relayer
+                name: {{ include "fuel-hyperlane-service.fullname" . }}-relayer
         
           ports:
             - name: http

@@ -61,9 +61,9 @@ spec:
               value: validator
           envFrom:
             - configMapRef:
-                name: {{ include "fuel-hyperlane.fullname" . }}-validator
+                name: {{ include "fuel-hyperlane-service.fullname" . }}-validator
             - secretRef:
-                name: {{ include "fuel-hyperlane.fullname" . }}-validator
+                name: {{ include "fuel-hyperlane-service.fullname" . }}-validator
           
           ports:
             - name: http
