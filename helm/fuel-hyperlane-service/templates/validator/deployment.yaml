@@ -8,9 +8,7 @@ metadata:
     {{- include "fuel-hyperlane-service.labels" . | nindent 4 }}
     app.kubernetes.io/service: {{ include "fuel-hyperlane-service.fullname" . }}-validator
 spec:
-  {{- if not $service.autoscaling.enabled }}
   replicas: {{ $service.replicaCount }}
-  {{- end }}
   selector:
     matchLabels:
       {{- include "fuel-hyperlane-service.selectorLabels" . | nindent 6 }}
@@ -72,14 +70,12 @@ spec:
               containerPort: {{ $service.service.port }}
               protocol: TCP
           
-          {{- if $service.healthcheck.enabled }}
-          {{- with $service.livenessProbe }}
+          {{- with $service.healthcheck }}
+          {{- if .enabled }}
           livenessProbe:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with $service.readinessProbe }}
+            {{- toYaml .livenessProbe | nindent 12 }}
           readinessProbe:
-            {{- toYaml . | nindent 12 }}
+            {{- toYaml .readinessProbe | nindent 12 }}
           {{- end }}
           {{- end }}
           
