@@ -17,3 +17,4 @@ spec:
   selector:
     {{- include "fuel-hyperlane-service.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/service: {{ include "fuel-hyperlane-service.fullname" . }}-relayer
+{{- end }}
