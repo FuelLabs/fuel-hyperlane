@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "fuel-hyperlane-service.fullname" . }}-test-relayer"
+  labels:
+    {{- include "fuel-hyperlane-service.labels" . | nindent 4 }}
+    app.kubernetes.io/service: {{ include "fuel-hyperlane-service.fullname" . }}-relayer
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['{{ include "fuel-hyperlane-service.fullname" . }}:{{ .Values.relayer.service.port }}']
+  restartPolicy: Never
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "fuel-hyperlane-service.fullname" . }}-test-validator"
+  labels:
+    {{- include "fuel-hyperlane-service.labels" . | nindent 4 }}
+    app.kubernetes.io/service: {{ include "fuel-hyperlane-service.fullname" . }}-validator
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['{{ include "fuel-hyperlane-service.fullname" . }}:{{ .Values.validator.service.port }}']
+  restartPolicy: Never
