@@ -14,7 +14,7 @@ relayer:
   enabled: true
   image:
     tag: "sha-f9b6d28-20250304024228"
-    startCommand: [ "./validator" ]
+    startCommand: [ "/app/relayer" ]
     startCommandArgs: [ ]
 
   service:
@@ -65,7 +65,7 @@ validator:
   enabled: true
   image:
     tag: "sha-f9b6d28-20250304024228"
-    startCommand: [ "/app/relayer" ]
+    startCommand: [ "./validator" ]
     startCommandArgs: [ ]
 
   service:
