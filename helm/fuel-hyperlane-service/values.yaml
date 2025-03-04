@@ -22,7 +22,7 @@ relayer:
     port: 9091
 
   serviceAccount:
-    create: true
+    create: false
     automount: true
     annotations: { }
     name: ""
@@ -73,7 +73,7 @@ validator:
     port: 9092
 
   serviceAccount:
-    create: true
+    create: false
     automount: true
     annotations: { }
     name: ""
