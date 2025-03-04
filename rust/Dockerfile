@@ -52,12 +52,21 @@ RUN apt-get update && \
 WORKDIR /app
 RUN mkdir -p /app/config
 COPY rust/main/config /app/config
+
+# Copy binaries to /app directory
 COPY --from=builder /release/* .
 
+# Also copy to root directory for compatibility with existing commands
+COPY --from=builder /release/validator /validator
+COPY --from=builder /release/relayer /relayer
+COPY --from=builder /release/scraper /scraper
+
 RUN chmod 777 /app &&  \
-    mkdir /usr/share/hyperlane/ && \
+    chmod +x /app/relayer /app/validator /app/scraper && \
+    chmod +x /relayer /validator /scraper && \
+    mkdir -p /usr/share/hyperlane/ && \
     chmod 1000 /usr/share/hyperlane && \
-    mkdir /data/ && \
+    mkdir -p /data/ && \
     chown -R 1000 /data/
 
 USER 1000
