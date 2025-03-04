@@ -38,7 +38,7 @@ spec:
       {{- end }}
 
       containers:
-        - name: {{ include "fuel-explorer.fullname" . }}-relayer
+        - name: {{ include "fuel-hyperlane-service.fullname" . }}-relayer
           {{- with $service.securityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}
