@@ -39,5 +39,5 @@ jobs:
         with:
           aws_role_arn: arn:aws:iam::024848458133:role/github_oidc_FuelLabs_fuel-hyperlane-service
           image: 024848458133.dkr.ecr.us-east-1.amazonaws.com/fuel-hyperlane-service
-          dockerfile: Dockerfile
+          dockerfile: rust/Dockerfile
           context: .
