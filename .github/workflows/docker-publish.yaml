@@ -3,13 +3,11 @@ name: Hyperlane - Build and publish Docker image
 on:
   push:
     branches:
-      - main
       - feat/fuel-integration
   pull_request:
     types: [opened, synchronize, closed]
   release:
     types: [published]
-  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -18,9 +16,6 @@ concurrency:
 jobs:
   build-and-publish-image:
     runs-on: buildjet-4vcpu-ubuntu-2204
-    if: |
-      (github.event_name == 'release' && github.event.action == 'published') ||
-      github.ref == 'refs/heads/master' || github.event_name == 'pull_request'
     permissions:
       contents: read
       packages: write
