@@ -5,9 +5,10 @@ on:
     branches:
       - feat/fuel-integration
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, synchronize, closed]
   release:
     types: [published]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -39,5 +40,5 @@ jobs:
         with:
           aws_role_arn: arn:aws:iam::024848458133:role/github_oidc_FuelLabs_fuel-hyperlane-service
           image: 024848458133.dkr.ecr.us-east-1.amazonaws.com/fuel-hyperlane-service
-          dockerfile: rust/Dockerfile
+          dockerfile: ./rust/Dockerfile
           context: .
