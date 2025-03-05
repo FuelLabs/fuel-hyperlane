@@ -3,6 +3,7 @@ name: Hyperlane - Build and publish Docker image
 on:
   push:
     branches:
+      - main
       - feat/fuel-integration
   pull_request:
     types: [opened, synchronize, closed]
