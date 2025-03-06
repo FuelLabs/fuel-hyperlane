@@ -1,0 +1,113 @@
+# Default values for fuel-hyperlane-service.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+nameOverride: ""
+fullnameOverride: "fuel-hyperlane-service"
+
+image:
+  repository: 024848458133.dkr.ecr.us-east-1.amazonaws.com/fuel-hyperlane-service
+  pullPolicy: Always
+  imagePullSecrets: [ ]
+
+relayer:
+  enabled: true
+  image:
+    tag: "sha-f9b6d28-20250304024228"
+    startCommand: [ "/app/relayer" ]
+    startCommandArgs: [ ]
+
+  service:
+    create: true
+    port: 9091
+
+  serviceAccount:
+    create: false
+    automount: true
+    annotations: { }
+    name: ""
+
+  securityContext:
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 1000
+
+  healthcheck:
+    enabled: true
+    livenessProbe:
+      httpGet:
+        path: /
+        port: http
+    readinessProbe:
+      httpGet:
+        path: /
+        port: http
+
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  volumeMounts: [ ]
+  volumes: [ ]
+
+  nodeSelector: { }
+  tolerations: [ ]
+  affinity: { }
+
+validator:
+  enabled: true
+  image:
+    tag: "sha-f9b6d28-20250304024228"
+    startCommand: [ "./validator" ]
+    startCommandArgs: [ ]
+
+  service:
+    create: true
+    port: 9092
+
+  serviceAccount:
+    create: false
+    automount: true
+    annotations: { }
+    name: ""
+
+  securityContext:
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 1000
+
+  healthcheck:
+    enabled: true
+    livenessProbe:
+      httpGet:
+        path: /
+        port: http
+    readinessProbe:
+      httpGet:
+        path: /
+        port: http
+
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  volumeMounts: [ ]
+  volumes: [ ]
+
+  nodeSelector: { }
+  tolerations: [ ]
+  affinity: { }
