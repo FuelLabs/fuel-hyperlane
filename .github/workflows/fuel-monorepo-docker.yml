@@ -2,8 +2,7 @@ name: Build and Push Monorepo Image to ECR
 on:
   push:
     branches: [main]
-    tags:
-      - '**'
+  workflow_dispatch:
 
 concurrency:
   group: build-push-monorepo-${{ github.ref }}
@@ -11,7 +10,8 @@ concurrency:
 
 jobs:
   build-and-push-to-ecr:
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest-x64-8x
+
     permissions:
       contents: read
       id-token: write
@@ -37,11 +37,12 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      # generating tag data from checked out code (to match remote sha hash)
       - name: Generate tag data
         id: taggen
         run: |
           echo "TAG_DATE=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
-          echo "TAG_SHA=$(echo '${{ github.event.pull_request.head.sha || github.sha }}' | cut -b 1-7)" >> $GITHUB_OUTPUT
+          echo "TAG_SHA=$(git rev-parse HEAD | cut -b 1-7)" >> $GITHUB_OUTPUT
 
       - name: Docker meta
         id: meta
@@ -52,8 +53,6 @@ jobs:
             ${{ steps.login-ecr.outputs.registry }}/fuel-hyperlane-service
           # generate Docker tags based on the following events/attributes
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
             type=raw,value=${{ steps.taggen.outputs.TAG_SHA }}-${{ steps.taggen.outputs.TAG_DATE }}
 
       - name: Read .registryrc
@@ -66,7 +65,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./
-          file: ./Dockerfile
+          file: ./rust/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
