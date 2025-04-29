@@ -1,10 +1,9 @@
 use crate::{
     contracts::interchain_security_module::InterchainSecurityModule as InterchainSecurityModuleContract,
-    conversions::*, ConnectionConf, FuelProvider,
+    conversions::*, wallet::FuelWallets, ConnectionConf, FuelProvider,
 };
 use async_trait::async_trait;
 use fuels::{
-    accounts::wallet::WalletUnlocked,
     programs::calls::Execution,
     types::{bech32::Bech32ContractId, Bytes},
 };
@@ -17,7 +16,7 @@ use hyperlane_core::{
 /// A reference to an ISM contract on some Fuel chain
 #[derive(Debug)]
 pub struct FuelInterchainSecurityModule {
-    contract: InterchainSecurityModuleContract<WalletUnlocked>,
+    contract: InterchainSecurityModuleContract<FuelWallets>,
     domain: HyperlaneDomain,
     provider: FuelProvider,
 }
@@ -27,7 +26,7 @@ impl FuelInterchainSecurityModule {
     pub async fn new(
         conf: &ConnectionConf,
         locator: ContractLocator<'_>,
-        mut wallet: WalletUnlocked,
+        mut wallet: FuelWallets,
     ) -> ChainResult<Self> {
         let fuel_provider = FuelProvider::new(locator.domain.clone(), conf).await;
 
@@ -68,7 +67,7 @@ impl InterchainSecurityModule for FuelInterchainSecurityModule {
         self.contract
             .methods()
             .module_type()
-            .simulate(Execution::StateReadOnly)
+            .simulate(Execution::state_read_only())
             .await
             .map_err(|e| {
                 ChainCommunicationError::from_other_str(
@@ -94,7 +93,7 @@ impl InterchainSecurityModule for FuelInterchainSecurityModule {
                 Bytes(metadata.to_vec()),
                 Bytes(RawHyperlaneMessage::from(message)),
             )
-            .determine_missing_contracts(None)
+            .determine_missing_contracts()
             .await
             .map_err(|e| {
                 ChainCommunicationError::from_other_str(
@@ -106,7 +105,7 @@ impl InterchainSecurityModule for FuelInterchainSecurityModule {
                     .as_str(),
                 )
             })?
-            .simulate(Execution::Realistic)
+            .simulate(Execution::realistic())
             .await
             .map_err(|e| {
                 ChainCommunicationError::from_other_str(
@@ -118,6 +117,6 @@ impl InterchainSecurityModule for FuelInterchainSecurityModule {
                     .as_str(),
                 )
             })
-            .map(|res| Some(U256::from(res.gas_used)))
+            .map(|res| Some(U256::from(res.tx_status.total_gas)))
     }
 }

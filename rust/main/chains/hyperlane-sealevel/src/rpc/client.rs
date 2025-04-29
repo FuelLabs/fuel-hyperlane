@@ -54,10 +54,9 @@ impl SealevelRpcClient {
 
     /// constructor
     pub fn new(rpc_endpoint: String) -> Self {
-        Self(RpcClient::new_with_commitment(
-            rpc_endpoint,
-            CommitmentConfig::processed(),
-        ))
+        let rpc_client =
+            RpcClient::new_with_commitment(rpc_endpoint, CommitmentConfig::processed());
+        Self::from_rpc_client(rpc_client)
     }
 
     /// constructor with an rpc client
@@ -75,6 +74,7 @@ impl SealevelRpcClient {
             .confirm_transaction_with_commitment(signature, commitment)
             .await
             .map(|ctx| ctx.value)
+            .map_err(Box::new)
             .map_err(HyperlaneSealevelError::ClientError)
             .map_err(Into::into)
     }
@@ -134,6 +134,7 @@ impl SealevelRpcClient {
             .0
             .get_balance(pubkey)
             .await
+            .map_err(Box::new)
             .map_err(Into::<HyperlaneSealevelError>::into)
             .map_err(ChainCommunicationError::from)?;
 
@@ -150,6 +151,7 @@ impl SealevelRpcClient {
         self.0
             .get_block_with_config(slot, config)
             .await
+            .map_err(Box::new)
             .map_err(HyperlaneSealevelError::ClientError)
             .map_err(Into::into)
     }
@@ -244,6 +246,7 @@ impl SealevelRpcClient {
         self.0
             .get_transaction_with_config(signature, config)
             .await
+            .map_err(Box::new)
             .map_err(HyperlaneSealevelError::ClientError)
             .map_err(Into::into)
     }

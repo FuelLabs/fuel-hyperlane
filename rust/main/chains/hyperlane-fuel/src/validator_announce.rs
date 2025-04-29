@@ -1,25 +1,27 @@
-use crate::{
-    contracts::validator_announce::ValidatorAnnounce as FuelVAContract, conversions::*,
-    ConnectionConf, FuelProvider,
-};
 use async_trait::async_trait;
 use fuels::{
-    prelude::WalletUnlocked,
+    accounts::ViewOnlyAccount,
     programs::calls::Execution,
     tx::{Receipt, ScriptExecutionResult},
     types::{bech32::Bech32ContractId, Address, Bits256, Bytes},
 };
+use tracing::trace;
+
 use hyperlane_core::{
     Announcement, ChainCommunicationError, ChainResult, ContractLocator, HyperlaneChain,
     HyperlaneContract, HyperlaneDomain, HyperlaneProvider, SignedType, TxOutcome,
     ValidatorAnnounce, H256, H512, U256,
 };
-use tracing::trace;
+
+use crate::{
+    contracts::validator_announce::ValidatorAnnounce as FuelVAContract, conversions::*,
+    wallet::FuelWallets, ConnectionConf, FuelProvider,
+};
 
 /// A reference to a ValidatorAnnounce contract on some Fuel chain
 #[derive(Debug)]
 pub struct FuelValidatorAnnounce {
-    contract: FuelVAContract<WalletUnlocked>,
+    contract: FuelVAContract<FuelWallets>,
     domain: HyperlaneDomain,
     provider: FuelProvider,
 }
@@ -29,7 +31,7 @@ impl FuelValidatorAnnounce {
     pub async fn new(
         conf: &ConnectionConf,
         locator: ContractLocator<'_>,
-        mut wallet: WalletUnlocked,
+        mut wallet: FuelWallets,
     ) -> ChainResult<Self> {
         let fuel_provider = FuelProvider::new(locator.domain.clone(), conf).await;
 
@@ -69,7 +71,7 @@ impl ValidatorAnnounce for FuelValidatorAnnounce {
         self.contract
             .methods()
             .get_announced_storage_locations(validators.iter().map(Bits256::from_h256).collect())
-            .simulate(Execution::StateReadOnly)
+            .simulate(Execution::state_read_only())
             .await
             .map(|res| res.value)
             .map_err(|e| {
@@ -106,6 +108,7 @@ impl ValidatorAnnounce for FuelValidatorAnnounce {
 
         // Extract transaction success from the receipts
         let success = call_res
+            .tx_status
             .receipts
             .iter()
             .filter_map(|r| match r {
@@ -118,7 +121,7 @@ impl ValidatorAnnounce for FuelValidatorAnnounce {
         Ok(TxOutcome {
             transaction_id: tx_id,
             executed: success,
-            gas_used: call_res.gas_used.into(),
+            gas_used: call_res.tx_status.total_gas.into(),
             gas_price: gas_price.into(),
         })
     }
@@ -132,7 +135,7 @@ impl ValidatorAnnounce for FuelValidatorAnnounce {
                 announcement.value.storage_location,
                 Bytes(announcement.signature.to_vec()),
             )
-            .simulate(Execution::Realistic)
+            .simulate(Execution::realistic())
             .await;
 
         match simulate_call {
@@ -143,7 +146,10 @@ impl ValidatorAnnounce for FuelValidatorAnnounce {
                     trace!("Failed to get signer balance: {:?}", err);
                     return None;
                 }
-                Some(U256::from(simulation.gas_used).saturating_sub(signer_balance.unwrap()))
+                Some(
+                    U256::from(simulation.tx_status.total_gas)
+                        .saturating_sub(signer_balance.unwrap()),
+                )
             }
             Err(err) => {
                 trace!("Failed to simulate validator announcement: {:?}", err);

@@ -1,22 +1,23 @@
-use crate::{
-    contracts::routing_ism::RoutingISM as RoutingISMContract, conversions::*, ConnectionConf,
-    FuelProvider,
-};
 use async_trait::async_trait;
 use fuels::{
-    accounts::wallet::WalletUnlocked,
     programs::calls::Execution,
     types::{bech32::Bech32ContractId, Bytes},
 };
+
 use hyperlane_core::{
     ChainCommunicationError, ChainResult, ContractLocator, Encode, HyperlaneChain,
     HyperlaneContract, HyperlaneDomain, HyperlaneMessage, HyperlaneProvider, RoutingIsm, H256,
 };
 
+use crate::{
+    contracts::routing_ism::RoutingISM as RoutingISMContract, conversions::*, wallet::FuelWallets,
+    ConnectionConf, FuelProvider,
+};
+
 /// A reference to a RoutingIsm contract on some Fuel chain
 #[derive(Debug)]
 pub struct FuelRoutingIsm {
-    contract: RoutingISMContract<WalletUnlocked>,
+    contract: RoutingISMContract<FuelWallets>,
     domain: HyperlaneDomain,
     provider: FuelProvider,
 }
@@ -26,7 +27,7 @@ impl FuelRoutingIsm {
     pub async fn new(
         conf: &ConnectionConf,
         locator: ContractLocator<'_>,
-        mut wallet: WalletUnlocked,
+        mut wallet: FuelWallets,
     ) -> ChainResult<Self> {
         let fuel_provider = FuelProvider::new(locator.domain.clone(), conf).await;
 
@@ -64,7 +65,7 @@ impl RoutingIsm for FuelRoutingIsm {
         self.contract
             .methods()
             .route(Bytes(message.to_vec()))
-            .determine_missing_contracts(None)
+            .determine_missing_contracts()
             .await
             .map_err(|e| {
                 ChainCommunicationError::from_other_str(
@@ -76,7 +77,7 @@ impl RoutingIsm for FuelRoutingIsm {
                     .as_str(),
                 )
             })?
-            .simulate(Execution::StateReadOnly)
+            .simulate(Execution::state_read_only())
             .await
             .map_err(|e| {
                 ChainCommunicationError::from_other_str(

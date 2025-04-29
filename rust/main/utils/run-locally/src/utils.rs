@@ -137,8 +137,7 @@ pub fn get_matching_lines<'a>(
         search_strings.iter().for_each(|search_string_vec| {
             if search_string_vec
                 .iter()
-                .map(|search_string| line.contains(search_string))
-                .all(|x| x)
+                .all(|search_string| line.contains(search_string))
             {
                 let count = matches.entry(search_string_vec.clone()).or_insert(0);
                 *count += 1;
@@ -149,7 +148,7 @@ pub fn get_matching_lines<'a>(
 }
 #[cfg(feature = "fuel")]
 pub fn fuel_to_hex_addr(addr: &fuels::types::bech32::Bech32ContractId) -> String {
-    format!("0x{}", fuels::types::ContractId::from(addr).to_string())
+    format!("0x{}", fuels::types::ContractId::from(addr))
 }
 
 #[cfg(feature = "cosmos")]

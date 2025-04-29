@@ -1,8 +1,7 @@
-use crate::{make_client, make_provider, prelude::FuelIntoH256, ConnectionConf};
+use crate::{make_provider, prelude::FuelIntoH256, ConnectionConf};
 
 use async_trait::async_trait;
 use fuels::{
-    client::FuelClient,
     prelude::Provider,
     types::{Address, BlockHeight, ContractId},
 };
@@ -17,20 +16,13 @@ use hyperlane_core::{
 pub struct FuelProvider {
     domain: HyperlaneDomain,
     provider: Provider,
-    client: FuelClient,
 }
 
 impl FuelProvider {
     /// Create a new fuel provider
     pub async fn new(domain: HyperlaneDomain, conf: &ConnectionConf) -> Self {
         let provider = make_provider(conf).await.unwrap();
-        let client = make_client(conf).unwrap();
-
-        Self {
-            domain,
-            provider,
-            client,
-        }
+        Self { domain, provider }
     }
 
     /// Get the inner provider
@@ -168,10 +160,12 @@ impl HyperlaneProvider for FuelProvider {
     }
 
     async fn is_contract(&self, address: &H256) -> ChainResult<bool> {
-        let contract_res = self.client.contract(&ContractId::from(address.0)).await;
-
-        match contract_res {
-            Ok(contract) => Ok(contract.is_some()),
+        match self
+            .provider
+            .contract_exists(&ContractId::from(address.0).into())
+            .await
+        {
+            Ok(is_contract) => Ok(is_contract),
             Err(e) => Err(ChainCommunicationError::CustomError(format!(
                 "Failed to query contract: {}",
                 e
@@ -181,7 +175,13 @@ impl HyperlaneProvider for FuelProvider {
 
     /// Get the base asset balance of an address
     async fn get_balance(&self, address: String) -> ChainResult<U256> {
-        let base = self.provider.base_asset_id();
+        let params = self.provider.consensus_parameters().await.map_err(|e| {
+            ChainCommunicationError::CustomError(format!(
+                "Failed to get consensus parameters: {}",
+                e
+            ))
+        })?;
+        let base = params.base_asset_id();
         let address_bytes = hex::decode(&address)?;
         let address = *Address::from_bytes_ref_checked(address_bytes.as_slice()).ok_or(
             ChainCommunicationError::CustomError(format!("Invalid address: {}", address)),

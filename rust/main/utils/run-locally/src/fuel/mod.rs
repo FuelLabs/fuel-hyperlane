@@ -1,11 +1,12 @@
 use deploy::deploy_fuel_hyperlane;
 use ethers::types::H160;
 use fuels::{
-    accounts::wallet::WalletUnlocked,
+    accounts::{signers::private_key::PrivateKeySigner, wallet::Wallet},
     crypto::SecretKey,
     prelude::{FuelService, Provider},
+    programs::calls::{CallParameters, Execution},
     test_helpers::{ChainConfig, NodeConfig, StateConfig},
-    types::{Bits256, Bytes, ContractId},
+    types::{transaction_builders::VariableOutputPolicy, AssetId, Bits256, Bytes, ContractId},
 };
 use futures::future::join_all;
 use macro_rules_attribute::apply;
@@ -52,9 +53,10 @@ pub const EVM_VALIDATOR_PKS: [&str; 2] = [
 ];
 
 pub async fn launch_fuel_node(port: u16) -> eyre::Result<FuelService> {
-    let mut node_config = NodeConfig::default();
-    node_config.addr = SocketAddr::new(Ipv4Addr::new(127, 0, 0, 1).into(), port);
-
+    let node_config = NodeConfig {
+        addr: SocketAddr::new(Ipv4Addr::new(127, 0, 0, 1).into(), port),
+        ..Default::default()
+    };
     Ok(FuelService::start(
         node_config,
         ChainConfig::local_testnet(),
@@ -193,9 +195,9 @@ async fn run_locally() -> eyre::Result<()> {
         let provider = Provider::from(config.node.bound_address()).await.unwrap();
         assert!(provider.healthy().await.unwrap());
 
-        let wallet = WalletUnlocked::new_from_private_key(
-            SecretKey::from_str(FUEL_WALLET_PKS[i]).unwrap(),
-            Some(provider),
+        let wallet = Wallet::new(
+            PrivateKeySigner::new(SecretKey::from_str(FUEL_WALLET_PKS[i]).unwrap()),
+            provider,
         );
         let (target_domain, name, validator_addr) = match config.domain {
             13373 => (
@@ -355,7 +357,7 @@ async fn stop_fuel_nodes(nodes: Vec<FuelNetwork>) {
     .await;
 }
 
-pub async fn dispatch(nodes: &Vec<FuelNetwork>) -> u32 {
+pub async fn dispatch(nodes: &[FuelNetwork]) -> u32 {
     let mut dispatched_messages = 0;
     for node in nodes.iter() {
         let targets = nodes
@@ -369,6 +371,24 @@ pub async fn dispatch(nodes: &Vec<FuelNetwork>) -> u32 {
                 ContractId::from(target.deployments.msg_recipient_test.contract_id()).into(),
             );
 
+            let quote = node
+                .deployments
+                .mailbox
+                .methods()
+                .quote_dispatch(
+                    target.config.domain,
+                    recipient,
+                    msg_body.clone(),
+                    Bytes(vec![]),
+                    ContractId::default(),
+                )
+                .determine_missing_contracts()
+                .await
+                .unwrap()
+                .simulate(Execution::realistic())
+                .await
+                .unwrap();
+
             let res = node
                 .deployments
                 .mailbox
@@ -376,11 +396,14 @@ pub async fn dispatch(nodes: &Vec<FuelNetwork>) -> u32 {
                 .dispatch(
                     target.config.domain,
                     recipient,
-                    msg_body,
+                    msg_body.clone(),
                     Bytes(vec![]),
                     ContractId::default(),
                 )
-                .determine_missing_contracts(None)
+                .call_params(CallParameters::new(quote.value, AssetId::BASE, 1_500_000))
+                .unwrap()
+                .with_variable_output_policy(VariableOutputPolicy::EstimateMinimum)
+                .determine_missing_contracts()
                 .await
                 .unwrap()
                 .call()

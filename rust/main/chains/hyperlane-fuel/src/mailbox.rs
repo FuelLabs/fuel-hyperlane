@@ -5,7 +5,7 @@ use std::{
 
 use async_trait::async_trait;
 use fuels::{
-    prelude::{Bech32ContractId, WalletUnlocked},
+    prelude::Bech32ContractId,
     programs::calls::Execution,
     tx::{Receipt, ScriptExecutionResult},
     types::{transaction::TxPolicies, transaction_builders::VariableOutputPolicy, Bytes},
@@ -22,13 +22,14 @@ use hyperlane_core::{
 use crate::{
     contracts::mailbox::{DispatchEvent, Mailbox as FuelMailboxContract, ProcessIdEvent},
     conversions::*,
+    wallet::FuelWallets,
     ConnectionConf, FuelIndexer, FuelProvider,
 };
 
 const GAS_ESTIMATE_MULTIPLIER: f64 = 1.3;
 /// A reference to a Mailbox contract on some Fuel chain
 pub struct FuelMailbox {
-    contract: FuelMailboxContract<WalletUnlocked>,
+    contract: FuelMailboxContract<FuelWallets>,
     provider: FuelProvider,
     domain: HyperlaneDomain,
 }
@@ -38,7 +39,7 @@ impl FuelMailbox {
     pub async fn new(
         conf: &ConnectionConf,
         locator: ContractLocator<'_>,
-        mut wallet: WalletUnlocked,
+        mut wallet: FuelWallets,
     ) -> ChainResult<Self> {
         let fuel_provider = FuelProvider::new(locator.domain.clone(), conf).await;
 
@@ -83,7 +84,7 @@ impl Mailbox for FuelMailbox {
         self.contract
             .methods()
             .nonce()
-            .simulate(Execution::StateReadOnly)
+            .simulate(Execution::state_read_only())
             .await
             .map(|r| r.value)
             .map_err(|e| {
@@ -104,7 +105,7 @@ impl Mailbox for FuelMailbox {
         self.contract
             .methods()
             .delivered(fuels::types::Bits256::from_h256(&id))
-            .simulate(Execution::StateReadOnly)
+            .simulate(Execution::state_read_only())
             .await
             .map(|r| r.value)
             .map_err(|e| {
@@ -124,7 +125,7 @@ impl Mailbox for FuelMailbox {
         self.contract
             .methods()
             .default_ism()
-            .simulate(Execution::StateReadOnly)
+            .simulate(Execution::state_read_only())
             .await
             .map(|r| r.value.into_h256())
             .map_err(|e| {
@@ -147,7 +148,7 @@ impl Mailbox for FuelMailbox {
             .methods()
             .recipient_ism(parsed_recipient.clone())
             .with_contract_ids(&[parsed_recipient])
-            .simulate(Execution::StateReadOnly)
+            .simulate(Execution::state_read_only())
             .await
             .map(|r| r.value.into_h256())
             .map_err(|e| {
@@ -197,7 +198,7 @@ impl Mailbox for FuelMailbox {
             )
             .with_variable_output_policy(VariableOutputPolicy::EstimateMinimum)
             .with_tx_policies(tx_policies)
-            .determine_missing_contracts(None)
+            .determine_missing_contracts()
             .await
             .map_err(|e| {
                 ChainCommunicationError::from_other_str(
@@ -224,6 +225,7 @@ impl Mailbox for FuelMailbox {
 
         // Extract transaction success from the receipts
         let success = call_res
+            .tx_status
             .receipts
             .iter()
             .filter_map(|r| match r {
@@ -244,7 +246,7 @@ impl Mailbox for FuelMailbox {
         Ok(TxOutcome {
             transaction_id: tx_id,
             executed: success,
-            gas_used: call_res.gas_used.into(),
+            gas_used: call_res.tx_status.total_gas.into(),
             gas_price: gas_price.into(),
         })
     }
@@ -267,7 +269,7 @@ impl Mailbox for FuelMailbox {
                 Bytes(RawHyperlaneMessage::from(message)),
             )
             .with_variable_output_policy(VariableOutputPolicy::EstimateMinimum)
-            .determine_missing_contracts(None)
+            .determine_missing_contracts()
             .await
             .map_err(|e| {
                 ChainCommunicationError::from_other_str(
@@ -279,7 +281,7 @@ impl Mailbox for FuelMailbox {
                     .as_str(),
                 )
             })?
-            .simulate(Execution::Realistic)
+            .simulate(Execution::realistic())
             .await
             .map_err(|e| {
                 ChainCommunicationError::from_other_str(
@@ -293,7 +295,9 @@ impl Mailbox for FuelMailbox {
             })?;
 
         Ok(TxCostEstimate {
-            gas_limit: ((simulate_call.gas_used as f64 * GAS_ESTIMATE_MULTIPLIER) as u64).into(),
+            gas_limit: ((simulate_call.tx_status.total_gas as f64 * GAS_ESTIMATE_MULTIPLIER)
+                as u64)
+                .into(),
             gas_price: gas_price.into(),
             l2_gas_limit: None,
         })
@@ -312,7 +316,7 @@ impl Mailbox for FuelMailbox {
 #[derive(Debug)]
 pub struct FuelDispatchIndexer {
     indexer: FuelIndexer<DispatchEvent>,
-    contract: FuelMailboxContract<WalletUnlocked>,
+    contract: FuelMailboxContract<FuelWallets>,
 }
 
 impl FuelDispatchIndexer {
@@ -320,7 +324,7 @@ impl FuelDispatchIndexer {
     pub async fn new(
         conf: &ConnectionConf,
         locator: ContractLocator<'_>,
-        wallet: WalletUnlocked,
+        wallet: FuelWallets,
     ) -> ChainResult<Self> {
         let contract = FuelMailboxContract::new(
             Bech32ContractId::from_h256(&locator.address),
@@ -354,7 +358,7 @@ impl SequenceAwareIndexer<HyperlaneMessage> for FuelDispatchIndexer {
         self.contract
             .methods()
             .nonce()
-            .simulate(Execution::StateReadOnly)
+            .simulate(Execution::state_read_only())
             .await
             .map(|r| r.value)
             .map_err(|e| {
@@ -386,7 +390,7 @@ impl FuelDeliveryIndexer {
     pub async fn new(
         conf: &ConnectionConf,
         locator: ContractLocator<'_>,
-        wallet: WalletUnlocked,
+        wallet: FuelWallets,
     ) -> ChainResult<Self> {
         let indexer = FuelIndexer::new(conf, locator, wallet).await;
         Ok(Self { indexer })

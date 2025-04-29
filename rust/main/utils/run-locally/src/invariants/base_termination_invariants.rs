@@ -1,5 +1,7 @@
 use maplit::hashmap;
 
+#[cfg(feature = "cosmos")]
+use crate::invariants::provider_metrics_invariant_met;
 use crate::{fetch_metric, log, metrics::agent_balance_sum};
 
 /// Base termination invariants which should be met for the E2E tests to pass
@@ -107,6 +109,27 @@ pub fn base_termination_invariants_met(
             messages_expected
         );
         return Ok(false);
+    }
+
+    #[cfg(feature = "cosmos")]
+    {
+        if !provider_metrics_invariant_met(
+            &relayer_metrics_port.to_string(),
+            messages_expected,
+            &hashmap! {"chain" => "cosmostest99990", "connection" => "rpc", "status" => "success"},
+            &hashmap! {"chain" => "cosmostest99990"},
+        )? {
+            return Ok(false);
+        }
+
+        if !provider_metrics_invariant_met(
+            &relayer_metrics_port.to_string(),
+            messages_expected,
+            &hashmap! {"chain" => "cosmostest99990", "connection" => "grpc", "status" => "success"},
+            &hashmap! {"chain" => "cosmostest99990"},
+        )? {
+            return Ok(false);
+        }
     }
 
     log!("Termination invariants have been meet");

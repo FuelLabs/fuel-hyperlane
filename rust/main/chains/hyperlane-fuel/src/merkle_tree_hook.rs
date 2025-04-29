@@ -3,12 +3,11 @@ use crate::{
         InsertedIntoTreeEvent, MerkleTreeHook as MerkleTreeHookContract,
     },
     conversions::*,
+    wallet::FuelWallets,
     ConnectionConf, FuelIndexer, FuelProvider,
 };
 use async_trait::async_trait;
-use fuels::{
-    accounts::wallet::WalletUnlocked, programs::calls::Execution, types::bech32::Bech32ContractId,
-};
+use fuels::{programs::calls::Execution, types::bech32::Bech32ContractId};
 use hyperlane_core::{
     accumulator::incremental::IncrementalMerkle, ChainCommunicationError, ChainResult, Checkpoint,
     ContractLocator, HyperlaneChain, HyperlaneContract, HyperlaneDomain, HyperlaneProvider,
@@ -20,7 +19,7 @@ use std::ops::RangeInclusive;
 /// A reference to a MerkleTreeHook contract on some Fuel chain
 #[derive(Debug)]
 pub struct FuelMerkleTreeHook {
-    contract: MerkleTreeHookContract<WalletUnlocked>,
+    contract: MerkleTreeHookContract<FuelWallets>,
     domain: HyperlaneDomain,
     provider: FuelProvider,
 }
@@ -30,7 +29,7 @@ impl FuelMerkleTreeHook {
     pub async fn new(
         conf: &ConnectionConf,
         locator: ContractLocator<'_>,
-        mut wallet: WalletUnlocked,
+        mut wallet: FuelWallets,
     ) -> ChainResult<Self> {
         let fuel_provider = FuelProvider::new(locator.domain.clone(), conf).await;
 
@@ -64,10 +63,11 @@ impl HyperlaneChain for FuelMerkleTreeHook {
 #[async_trait]
 impl MerkleTreeHook for FuelMerkleTreeHook {
     async fn tree(&self, _reorg_period: &ReorgPeriod) -> ChainResult<IncrementalMerkle> {
-        self.contract
+        let res = self
+            .contract
             .methods()
             .tree()
-            .simulate(Execution::StateReadOnly)
+            .simulate(Execution::state_read_only())
             .await
             .map_err(|e| {
                 ChainCommunicationError::from_other_str(
@@ -78,21 +78,27 @@ impl MerkleTreeHook for FuelMerkleTreeHook {
                     )
                     .as_str(),
                 )
-            })
-            .map(|res| {
-                let merkle_tree = res.value;
-                IncrementalMerkle {
-                    branch: merkle_tree.branch.into_h256_array(),
-                    count: merkle_tree.count as usize,
-                }
-            })
+            })?;
+
+        let merkle_tree = res.value;
+
+        let branch = merkle_tree.branch.into_h256_array().map_err(|e| {
+            ChainCommunicationError::from_other_str(
+                format!("Failed to convert branch to H256 array: {}", e).as_str(),
+            )
+        })?;
+
+        Ok(IncrementalMerkle {
+            branch,
+            count: merkle_tree.count as usize,
+        })
     }
 
     async fn count(&self, _reorg_period: &ReorgPeriod) -> ChainResult<u32> {
         self.contract
             .methods()
             .count()
-            .simulate(Execution::StateReadOnly)
+            .simulate(Execution::state_read_only())
             .await
             .map_err(|e| {
                 ChainCommunicationError::from_other_str(
@@ -111,7 +117,7 @@ impl MerkleTreeHook for FuelMerkleTreeHook {
         self.contract
             .methods()
             .latest_checkpoint()
-            .simulate(Execution::StateReadOnly)
+            .simulate(Execution::state_read_only())
             .await
             .map_err(|e| {
                 ChainCommunicationError::from_other_str(
@@ -143,7 +149,7 @@ impl MerkleTreeHook for FuelMerkleTreeHook {
 #[derive(Debug)]
 pub struct FuelMerkleTreeHookIndexer {
     indexer: FuelIndexer<InsertedIntoTreeEvent>,
-    contract: MerkleTreeHookContract<WalletUnlocked>,
+    contract: MerkleTreeHookContract<FuelWallets>,
 }
 
 impl FuelMerkleTreeHookIndexer {
@@ -151,7 +157,7 @@ impl FuelMerkleTreeHookIndexer {
     pub async fn new(
         conf: &ConnectionConf,
         locator: ContractLocator<'_>,
-        wallet: WalletUnlocked,
+        wallet: FuelWallets,
     ) -> ChainResult<Self> {
         let contract = MerkleTreeHookContract::new(
             Bech32ContractId::from_h256(&locator.address),
@@ -182,10 +188,12 @@ impl Indexer<MerkleTreeInsertion> for FuelMerkleTreeHookIndexer {
 #[async_trait]
 impl SequenceAwareIndexer<MerkleTreeInsertion> for FuelMerkleTreeHookIndexer {
     async fn latest_sequence_count_and_tip(&self) -> ChainResult<(Option<u32>, u32)> {
+        let tip = self.get_finalized_block_number().await?;
+
         self.contract
             .methods()
-            .count_and_block()
-            .simulate(Execution::StateReadOnly)
+            .count()
+            .simulate(Execution::state_read_only())
             .await
             .map_err(|e| {
                 ChainCommunicationError::from_other_str(
@@ -197,9 +205,6 @@ impl SequenceAwareIndexer<MerkleTreeInsertion> for FuelMerkleTreeHookIndexer {
                     .as_str(),
                 )
             })
-            .map(|res| {
-                let (count, tip) = res.value;
-                (Some(count), tip)
-            })
+            .map(|res| (Some(res.value), tip))
     }
 }
